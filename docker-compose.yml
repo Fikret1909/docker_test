@@ -1,0 +1,64 @@
+version: "3"
+
+services:
+  db:
+    image: mysql:latest
+    container_name: db
+    restart: always 
+    environment:
+        - MYSQL_DATABASE=crinfotask
+        - MYSQL_ROOT_PASSWORD=112233
+        - MYSQL_USER=dev
+        - MYSQL_PASSWORD=dev    
+    ports:
+        - "8989:3306"
+    volumes:
+        - "./data/db/mysql:/var/lib/mysql"
+    networks:
+      main_network:
+        ipv4_address: 10.10.0.4
+  django:
+    build: .
+    container_name: django
+    ports:
+      - "8005:80"
+      - "3500:3500"
+      - "8006:81"
+    volumes:
+      - $PWD/www:/var/www/html
+    command: python3  ./www/django-folder/crinfo/manage.py makemigrations
+    command: python3  ./www/django-folder/crinfo/manage.py migrate
+    command: apache2ctl -D FOREGROUND
+    networks:
+      main_network:
+        ipv4_address: 10.10.0.3
+  ngnix:
+    image: nginx
+    ports:
+      - "8088:80"
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=8088
+    volumes:
+      - ./ngnix.conf/:/etc/nginx/nginx.conf
+    command: [nginx-debug, '-g', 'daemon off;']
+    networks:
+      main_network:
+        ipv4_address: 10.10.0.9
+  apache:
+    image: httpd
+    container_name: apache_web
+    volumes:
+      - ./my-httpd.conf/:/etc/apache2/sites-available/000-default.conf
+    command: bash -c "httpd -D FOREGROUND"
+    ports:
+      - "8089:80"
+    networks:
+      main_network:
+        ipv4_address: 10.10.0.2  
+networks:
+  main_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24 
